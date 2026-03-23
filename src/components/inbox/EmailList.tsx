@@ -45,7 +45,7 @@ export function EmailList() {
     <div className="w-[380px] h-screen border-r border-border flex flex-col shrink-0 bg-background">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border-subtle">
-        <h2 className="font-display text-lg text-foreground">Inbox</h2>
+        <h2 className="font-display text-lg text-foreground">🚀 Inbox — ARIA Connected</h2>
         <div className="flex items-center gap-1">
           <button className="p-1.5 rounded-md text-muted-foreground hover:bg-surface-hover hover:text-foreground transition-colors active:scale-95">
             <Filter className="w-3.5 h-3.5" />

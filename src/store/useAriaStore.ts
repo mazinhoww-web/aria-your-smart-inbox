@@ -35,6 +35,14 @@ interface UserProfile {
   category_settings: Record<string, unknown> | null;
 }
 
+interface ProcessingStatus {
+  state: 'idle' | 'fetching' | 'classifying' | 'complete' | 'error';
+  current: number;
+  total: number;
+  message: string;
+  error: string | null;
+}
+
 interface AriaStore {
   profile: UserProfile | null;
   emails: Email[];
@@ -42,6 +50,7 @@ interface AriaStore {
   categoryCounts: Record<string, number>;
   isProcessing: boolean;
   processingStats: Record<string, number> | null;
+  processingStatus: ProcessingStatus;
   activeDraft: Draft | null;
   isDraftLoading: boolean;
 
@@ -69,6 +78,10 @@ const CATEGORY_MAP: Record<string, string> = {
 
 export { CATEGORY_MAP };
 
+const defaultProcessingStatus: ProcessingStatus = {
+  state: 'idle', current: 0, total: 0, message: '', error: null,
+};
+
 export const useAriaStore = create<AriaStore>((set, get) => ({
   profile: null,
   emails: [],
@@ -76,6 +89,7 @@ export const useAriaStore = create<AriaStore>((set, get) => ({
   categoryCounts: {},
   isProcessing: false,
   processingStats: null,
+  processingStatus: { ...defaultProcessingStatus },
   activeDraft: null,
   isDraftLoading: false,
 
@@ -113,11 +127,43 @@ export const useAriaStore = create<AriaStore>((set, get) => ({
   selectEmail: (id) => set({ selectedEmailId: id, activeDraft: null }),
 
   processInbox: async () => {
-    set({ isProcessing: true, processingStats: null });
+    set({
+      isProcessing: true,
+      processingStats: null,
+      processingStatus: { state: 'fetching', current: 0, total: 0, message: 'Buscando e-mails...', error: null },
+    });
     try {
+      set({ processingStatus: { state: 'classifying', current: 0, total: 0, message: 'Classificando e-mails com IA...', error: null } });
       const res = await supabase.functions.invoke("process-inbox", { body: { limit: 50 } });
-      if (res.data) set({ processingStats: res.data.categories });
+      if (res.error) throw new Error(res.error.message);
+
+      const processed = res.data?.processed ?? 0;
+      const categories = res.data?.categories ?? {};
+      const isDemo = res.data?.demo ?? false;
+
+      set({
+        processingStats: categories,
+        processingStatus: {
+          state: 'complete',
+          current: processed,
+          total: processed,
+          message: isDemo
+            ? `${processed} e-mails demo carregados`
+            : `${processed} e-mails processados`,
+          error: null,
+        },
+      });
       await get().loadEmails();
+    } catch (err) {
+      set({
+        processingStatus: {
+          state: 'error',
+          current: 0,
+          total: 0,
+          message: 'Erro ao processar',
+          error: (err as Error).message,
+        },
+      });
     } finally {
       set({ isProcessing: false });
     }

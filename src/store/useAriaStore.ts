@@ -109,7 +109,7 @@ export const useAriaStore = create<AriaStore>((set, get) => ({
     const profile = get().profile;
     if (!profile) return;
 
-    await supabase.from("user_profiles").update(updates).eq("id", profile.id);
+    await supabase.from("user_profiles").update(updates as any).eq("id", profile.id);
 
     set({ profile: { ...profile, ...updates } as UserProfile });
   },

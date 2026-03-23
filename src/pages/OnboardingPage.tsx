@@ -5,11 +5,6 @@ import { Mail, Tag, Pen, CheckCircle2, Loader2, ArrowRight, Shield } from "lucid
 import { supabase } from "@/integrations/supabase/client";
 import { useAriaStore } from "@/store/useAriaStore";
 
-const GMAIL_SCOPES = [
-  "https://www.googleapis.com/auth/gmail.modify",
-  "https://www.googleapis.com/auth/gmail.compose",
-].join(" ");
-
 const STEPS = [
   { icon: Mail, title: "Conectar Gmail", desc: "Autorize o acesso para ler, organizar e rascunhar e-mails." },
   { icon: Tag, title: "Configurar categorias", desc: "Criando labels para organizar sua inbox automaticamente." },

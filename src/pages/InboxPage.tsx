@@ -25,11 +25,6 @@ export default function InboxPage() {
         .eq("id", session.user.id)
         .single();
 
-      if (!profile?.gmail_connected) {
-        navigate("/onboarding");
-        return;
-      }
-
       loadProfile();
       loadEmails();
     };

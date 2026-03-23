@@ -18,19 +18,14 @@ export default function LandingPage() {
           .select("gmail_connected")
           .eq("id", session.user.id)
           .single();
-        navigate(profile?.gmail_connected ? "/inbox" : "/onboarding");
+        navigate("/inbox");
       }
     };
     checkSession();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === "SIGNED_IN" && session) {
-        const { data: profile } = await supabase
-          .from("user_profiles")
-          .select("gmail_connected")
-          .eq("id", session.user.id)
-          .single();
-        navigate(profile?.gmail_connected ? "/inbox" : "/onboarding");
+        navigate("/inbox");
       }
     });
     return () => subscription.unsubscribe();

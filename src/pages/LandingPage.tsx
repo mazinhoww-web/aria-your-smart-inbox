@@ -1,7 +1,9 @@
 import { motion } from "framer-motion";
 import { InboxDemo } from "@/components/landing/InboxDemo";
 import { lovable } from "@/integrations/lovable/index";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function LandingPage() {
   const [loading, setLoading] = useState(false);

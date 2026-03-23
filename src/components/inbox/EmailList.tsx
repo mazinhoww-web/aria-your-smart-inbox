@@ -1,37 +1,26 @@
 import { motion } from "framer-motion";
-import { RefreshCw, Filter } from "lucide-react";
+import { RefreshCw, Filter, Loader2 } from "lucide-react";
+import { useAriaStore, CATEGORY_MAP } from "@/store/useAriaStore";
+import { formatDistanceToNow } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
-interface EmailRowData {
-  id: string;
-  sender: string;
-  subject: string;
-  snippet: string;
-  category: string;
-  catColor: string;
-  time: string;
-  unread: boolean;
-  hasDraft: boolean;
-}
+const CAT_COLORS: Record<string, string> = {
+  to_respond: "var(--cat-respond)",
+  fyi: "var(--cat-fyi)",
+  comment: "var(--cat-comment)",
+  notification: "var(--cat-notification)",
+  meeting_update: "var(--cat-meeting)",
+  awaiting_reply: "var(--cat-awaiting)",
+  actioned: "var(--cat-actioned)",
+  marketing: "var(--cat-marketing)",
+};
 
-const MOCK_EMAILS: EmailRowData[] = [
-  { id: "1", sender: "Carolina Mendes", subject: "Proposta revisada — preciso da sua aprovação", snippet: "Oi! Segue a versão atualizada da proposta. Quando puder revisar...", category: "Responder", catColor: "var(--cat-respond)", time: "10min", unread: true, hasDraft: true },
-  { id: "2", sender: "André Rocha", subject: "Re: Alinhamento Q2 — datas confirmadas", snippet: "Confirmado: reunião dia 15 às 14h. Vou enviar o invite...", category: "FYI", catColor: "var(--cat-fyi)", time: "32min", unread: true, hasDraft: false },
-  { id: "3", sender: "Slack", subject: "3 novas mensagens em #produto", snippet: "@marina mencionou você em #produto: 'Sobre o fluxo de...'", category: "Notificação", catColor: "var(--cat-notification)", time: "1h", unread: false, hasDraft: false },
-  { id: "4", sender: "Google Calendar", subject: "Lembrete: Review semanal amanhã às 10h", snippet: "Review semanal — Participantes: você, Thiago, Marina...", category: "Reunião", catColor: "var(--cat-meeting)", time: "2h", unread: false, hasDraft: false },
-  { id: "5", sender: "Fernanda Lima", subject: "Comentário no doc de specs do MVP", snippet: "Adicionei um comentário na seção de requisitos técnicos...", category: "Comentário", catColor: "var(--cat-comment)", time: "3h", unread: false, hasDraft: false },
-  { id: "6", sender: "Thiago Bastos", subject: "Aguardando sua assinatura no contrato", snippet: "O contrato está pronto para assinatura. Prazo até sexta...", category: "Aguardando", catColor: "var(--cat-awaiting)", time: "5h", unread: false, hasDraft: false },
-  { id: "7", sender: "HubSpot", subject: "Seu relatório mensal está pronto", snippet: "Relatório de março: 234 contatos, 12 deals em progresso...", category: "Marketing", catColor: "var(--cat-marketing)", time: "6h", unread: false, hasDraft: false },
-  { id: "8", sender: "Marina Souza", subject: "Pode revisar esse wireframe?", snippet: "Acabei o wireframe do novo fluxo de onboarding. Tá no Figma...", category: "Responder", catColor: "var(--cat-respond)", time: "8h", unread: false, hasDraft: true },
-];
+export function EmailList() {
+  const { emails, selectedEmailId, selectEmail, processInbox, isProcessing } =
+    useAriaStore();
 
-interface EmailListProps {
-  selectedId: string | null;
-  onSelect: (id: string) => void;
-}
-
-export function EmailList({ selectedId, onSelect }: EmailListProps) {
-  const unread = MOCK_EMAILS.filter(e => e.unread);
-  const read = MOCK_EMAILS.filter(e => !e.unread);
+  const unread = emails.filter((e) => e.is_unread);
+  const read = emails.filter((e) => !e.is_unread);
 
   return (
     <div className="w-[380px] h-screen border-r border-border flex flex-col shrink-0 bg-background">
@@ -42,15 +31,36 @@ export function EmailList({ selectedId, onSelect }: EmailListProps) {
           <button className="p-1.5 rounded-md text-muted-foreground hover:bg-surface-hover hover:text-foreground transition-colors active:scale-95">
             <Filter className="w-3.5 h-3.5" />
           </button>
-          <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs text-primary bg-primary/10 hover:bg-primary/15 transition-colors active:scale-95">
-            <RefreshCw className="w-3 h-3" />
-            Processar
+          <button
+            onClick={() => processInbox()}
+            disabled={isProcessing}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs text-primary bg-primary/10 hover:bg-primary/15 transition-colors active:scale-95 disabled:opacity-50"
+          >
+            {isProcessing ? (
+              <Loader2 className="w-3 h-3 animate-spin" />
+            ) : (
+              <RefreshCw className="w-3 h-3" />
+            )}
+            {isProcessing ? "Processando..." : "Processar"}
           </button>
         </div>
       </div>
 
       {/* Email sections */}
       <div className="flex-1 overflow-y-auto">
+        {emails.length === 0 && !isProcessing && (
+          <div className="flex items-center justify-center h-full">
+            <div className="text-center px-6">
+              <p className="text-sm text-muted-foreground/40">
+                Nenhum e-mail processado
+              </p>
+              <p className="text-[11px] text-muted-foreground/25 mt-1.5">
+                Clique em "Processar" para classificar sua inbox
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Unread */}
         {unread.length > 0 && (
           <div>
@@ -64,15 +74,18 @@ export function EmailList({ selectedId, onSelect }: EmailListProps) {
               animate="show"
               variants={{
                 hidden: { opacity: 0 },
-                show: { opacity: 1, transition: { staggerChildren: 0.05 } },
+                show: {
+                  opacity: 1,
+                  transition: { staggerChildren: 0.05 },
+                },
               }}
             >
               {unread.map((email) => (
                 <EmailRow
                   key={email.id}
                   email={email}
-                  selected={selectedId === email.id}
-                  onSelect={onSelect}
+                  selected={selectedEmailId === email.id}
+                  onSelect={selectEmail}
                 />
               ))}
             </motion.div>
@@ -80,21 +93,23 @@ export function EmailList({ selectedId, onSelect }: EmailListProps) {
         )}
 
         {/* Read */}
-        <div>
-          <div className="px-4 py-2 mt-2">
-            <span className="text-[10px] font-label text-muted-foreground/60 uppercase tracking-wider">
-              Tudo mais
-            </span>
+        {read.length > 0 && (
+          <div>
+            <div className="px-4 py-2 mt-2">
+              <span className="text-[10px] font-label text-muted-foreground/60 uppercase tracking-wider">
+                Tudo mais
+              </span>
+            </div>
+            {read.map((email) => (
+              <EmailRow
+                key={email.id}
+                email={email}
+                selected={selectedEmailId === email.id}
+                onSelect={selectEmail}
+              />
+            ))}
           </div>
-          {read.map((email) => (
-            <EmailRow
-              key={email.id}
-              email={email}
-              selected={selectedId === email.id}
-              onSelect={onSelect}
-            />
-          ))}
-        </div>
+        )}
       </div>
     </div>
   );
@@ -105,10 +120,28 @@ function EmailRow({
   selected,
   onSelect,
 }: {
-  email: EmailRowData;
+  email: {
+    id: string;
+    sender_name: string | null;
+    subject: string | null;
+    snippet: string | null;
+    category: string;
+    is_unread: boolean | null;
+    has_draft: boolean | null;
+    received_at: string | null;
+  };
   selected: boolean;
   onSelect: (id: string) => void;
 }) {
+  const catColor = CAT_COLORS[email.category] ?? "var(--cat-fyi)";
+  const catLabel = CATEGORY_MAP[email.category] ?? email.category;
+  const timeAgo = email.received_at
+    ? formatDistanceToNow(new Date(email.received_at), {
+        addSuffix: false,
+        locale: ptBR,
+      })
+    : "";
+
   return (
     <motion.button
       variants={{
@@ -122,49 +155,52 @@ function EmailRow({
           ? "bg-surface border-l-2"
           : "hover:bg-surface-hover border-l-2 border-l-transparent"
       }`}
-      style={selected ? { borderLeftColor: `hsl(${email.catColor})` } : undefined}
+      style={selected ? { borderLeftColor: `hsl(${catColor})` } : undefined}
     >
-      {/* Unread dot */}
       <div className="pt-1.5 shrink-0">
-        {email.unread ? (
+        {email.is_unread ? (
           <div className="w-2 h-2 rounded-full bg-primary" />
         ) : (
           <div className="w-2 h-2 rounded-full bg-transparent" />
         )}
       </div>
 
-      {/* Content */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-2">
           <span
             className={`text-xs truncate ${
-              email.unread ? "text-foreground font-semibold" : "text-foreground/80"
+              email.is_unread
+                ? "text-foreground font-semibold"
+                : "text-foreground/80"
             }`}
           >
-            {email.sender}
+            {email.sender_name ?? "Desconhecido"}
           </span>
           <div className="flex items-center gap-1.5 shrink-0">
-            {email.hasDraft && (
+            {email.has_draft && (
               <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse-glow" />
             )}
             <span
               className="text-[9px] font-label px-1.5 py-0.5 rounded-full"
               style={{
-                backgroundColor: `hsl(${email.catColor} / 0.12)`,
-                color: `hsl(${email.catColor})`,
+                backgroundColor: `hsl(${catColor} / 0.12)`,
+                color: `hsl(${catColor})`,
               }}
             >
-              {email.category}
+              {catLabel}
             </span>
           </div>
         </div>
-        <p className="text-[11px] text-foreground/70 truncate mt-0.5">{email.subject}</p>
-        <p className="text-[10px] text-muted-foreground truncate mt-0.5">{email.snippet}</p>
+        <p className="text-[11px] text-foreground/70 truncate mt-0.5">
+          {email.subject}
+        </p>
+        <p className="text-[10px] text-muted-foreground truncate mt-0.5">
+          {email.snippet}
+        </p>
       </div>
 
-      {/* Time */}
       <span className="text-[10px] font-label text-muted-foreground/50 shrink-0 pt-0.5">
-        {email.time}
+        {timeAgo}
       </span>
     </motion.button>
   );

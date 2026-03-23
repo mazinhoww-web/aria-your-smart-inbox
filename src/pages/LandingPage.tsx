@@ -12,14 +12,7 @@ export default function LandingPage() {
   useEffect(() => {
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        const { data: profile } = await supabase
-          .from("user_profiles")
-          .select("gmail_connected")
-          .eq("id", session.user.id)
-          .single();
-        navigate("/inbox");
-      }
+      if (session) navigate("/inbox");
     };
     checkSession();
 

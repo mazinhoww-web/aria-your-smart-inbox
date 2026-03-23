@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Brain, Sparkles, Zap } from "lucide-react";
+import { ArrowLeft, Brain, Sparkles, Zap, Plus, Trash2, Edit2, Save, X, Mail, CheckCircle2, XCircle } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
@@ -20,40 +20,47 @@ const CAT_COLORS: Record<string, string> = {
   marketing: "var(--cat-marketing)",
 };
 
+interface Snippet {
+  id: string;
+  trigger_text: string;
+  content: string;
+  use_count: number | null;
+}
+
 export default function SettingsPage() {
   const navigate = useNavigate();
   const { profile, loadProfile, updateProfile } = useAriaStore();
   const [anthropicKey, setAnthropicKey] = useState("");
   const [saving, setSaving] = useState(false);
+  const [snippets, setSnippets] = useState<Snippet[]>([]);
+  const [editingSnippet, setEditingSnippet] = useState<string | null>(null);
+  const [newSnippet, setNewSnippet] = useState({ trigger_text: "", content: "" });
+  const [showAddSnippet, setShowAddSnippet] = useState(false);
 
   useEffect(() => {
     loadProfile();
+    loadSnippets();
   }, []);
 
   useEffect(() => {
-    if (profile?.anthropic_api_key) {
-      setAnthropicKey(profile.anthropic_api_key);
-    }
+    if (profile?.anthropic_api_key) setAnthropicKey(profile.anthropic_api_key);
   }, [profile]);
+
+  const loadSnippets = async () => {
+    const { data } = await supabase
+      .from("snippets")
+      .select("*")
+      .order("created_at", { ascending: true });
+    if (data) setSnippets(data as Snippet[]);
+  };
 
   const handleProviderChange = async (useAnthropic: boolean) => {
     if (useAnthropic && !anthropicKey) {
-      toast({
-        title: "Chave necessária",
-        description: "Insira sua chave da Anthropic antes de ativar.",
-        variant: "destructive",
-      });
+      toast({ title: "Chave necessária", description: "Insira sua chave da Anthropic antes de ativar.", variant: "destructive" });
       return;
     }
-    await updateProfile({
-      ai_provider: useAnthropic ? "anthropic" : "lovable",
-    });
-    toast({
-      title: "Provedor atualizado",
-      description: useAnthropic
-        ? "Usando Anthropic Claude"
-        : "Usando ARIA AI (padrão)",
-    });
+    await updateProfile({ ai_provider: useAnthropic ? "anthropic" : "lovable" });
+    toast({ title: "Provedor atualizado", description: useAnthropic ? "Usando Anthropic Claude" : "Usando ARIA AI (padrão)" });
   };
 
   const handleSaveKey = async () => {
@@ -64,6 +71,34 @@ export default function SettingsPage() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleAddSnippet = async () => {
+    if (!newSnippet.trigger_text || !newSnippet.content) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    await supabase.from("snippets").insert({
+      user_id: user.id,
+      trigger_text: newSnippet.trigger_text,
+      content: newSnippet.content,
+    });
+    setNewSnippet({ trigger_text: "", content: "" });
+    setShowAddSnippet(false);
+    loadSnippets();
+    toast({ title: "Snippet criado" });
+  };
+
+  const handleUpdateSnippet = async (id: string, trigger_text: string, content: string) => {
+    await supabase.from("snippets").update({ trigger_text, content }).eq("id", id);
+    setEditingSnippet(null);
+    loadSnippets();
+    toast({ title: "Snippet atualizado" });
+  };
+
+  const handleDeleteSnippet = async (id: string) => {
+    await supabase.from("snippets").delete().eq("id", id);
+    loadSnippets();
+    toast({ title: "Snippet removido" });
   };
 
   const handleSignOut = async () => {
@@ -78,131 +113,64 @@ export default function SettingsPage() {
       <div className="max-w-2xl mx-auto px-6 py-8">
         {/* Header */}
         <div className="flex items-center gap-3 mb-8">
-          <button
-            onClick={() => navigate("/inbox")}
-            className="p-2 rounded-md text-muted-foreground hover:bg-surface-hover hover:text-foreground transition-colors"
-          >
+          <button onClick={() => navigate("/inbox")} className="p-2 rounded-md text-muted-foreground hover:bg-surface-hover hover:text-foreground transition-colors">
             <ArrowLeft className="w-4 h-4" />
           </button>
-          <h1 className="font-display text-2xl text-foreground">
-            Configurações
-          </h1>
+          <h1 className="font-display text-2xl text-foreground">Configurações</h1>
         </div>
 
         <Tabs defaultValue="ai" className="space-y-6">
           <TabsList className="bg-surface border border-border">
-            <TabsTrigger value="ai" className="text-xs">
-              <Brain className="w-3.5 h-3.5 mr-1.5" />
-              Inteligência
-            </TabsTrigger>
-            <TabsTrigger value="categories" className="text-xs">
-              Categorias
-            </TabsTrigger>
-            <TabsTrigger value="account" className="text-xs">
-              Conta
-            </TabsTrigger>
+            <TabsTrigger value="ai" className="text-xs"><Brain className="w-3.5 h-3.5 mr-1.5" />Inteligência</TabsTrigger>
+            <TabsTrigger value="categories" className="text-xs">Categorias</TabsTrigger>
+            <TabsTrigger value="snippets" className="text-xs">Snippets</TabsTrigger>
+            <TabsTrigger value="account" className="text-xs">Conta</TabsTrigger>
           </TabsList>
 
           {/* AI Provider Tab */}
           <TabsContent value="ai" className="space-y-6">
             <div className="rounded-lg border border-border bg-card p-5 space-y-5">
               <div>
-                <h3 className="text-sm font-medium text-foreground mb-1">
-                  Provedor de IA
-                </h3>
-                <p className="text-xs text-muted-foreground">
-                  Escolha qual modelo de IA classifica e-mails e gera
-                  rascunhos.
-                </p>
+                <h3 className="text-sm font-medium text-foreground mb-1">Provedor de IA</h3>
+                <p className="text-xs text-muted-foreground">Escolha qual modelo classifica e-mails e gera rascunhos.</p>
               </div>
 
               {/* Default provider */}
-              <div
-                className={`rounded-lg border p-4 transition-colors ${
-                  !isAnthropic
-                    ? "border-primary bg-primary/5"
-                    : "border-border"
-                }`}
-              >
+              <div className={`rounded-lg border p-4 transition-colors ${!isAnthropic ? "border-primary bg-primary/5" : "border-border"}`}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-md bg-primary/10 flex items-center justify-center">
-                      <Zap className="w-4 h-4 text-primary" />
-                    </div>
+                    <div className="w-8 h-8 rounded-md bg-primary/10 flex items-center justify-center"><Zap className="w-4 h-4 text-primary" /></div>
                     <div>
-                      <p className="text-sm font-medium text-foreground">
-                        ARIA AI
-                      </p>
-                      <p className="text-[11px] text-muted-foreground">
-                        Padrão · Sem configuração necessária
-                      </p>
+                      <p className="text-sm font-medium text-foreground">ARIA AI</p>
+                      <p className="text-[11px] text-muted-foreground">Padrão · Sem configuração necessária</p>
                     </div>
                   </div>
-                  {!isAnthropic && (
-                    <span className="text-[10px] font-label text-primary px-2 py-0.5 rounded-full bg-primary/10">
-                      Ativo
-                    </span>
-                  )}
+                  {!isAnthropic && <span className="text-[10px] font-label text-primary px-2 py-0.5 rounded-full bg-primary/10">Ativo</span>}
                 </div>
               </div>
 
-              {/* Anthropic provider */}
-              <div
-                className={`rounded-lg border p-4 transition-colors ${
-                  isAnthropic
-                    ? "border-primary bg-primary/5"
-                    : "border-border"
-                }`}
-              >
+              {/* Anthropic */}
+              <div className={`rounded-lg border p-4 transition-colors ${isAnthropic ? "border-primary bg-primary/5" : "border-border"}`}>
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-md bg-surface flex items-center justify-center">
-                      <Sparkles className="w-4 h-4 text-foreground/70" />
-                    </div>
+                    <div className="w-8 h-8 rounded-md bg-surface flex items-center justify-center"><Sparkles className="w-4 h-4 text-foreground/70" /></div>
                     <div>
-                      <p className="text-sm font-medium text-foreground">
-                        Anthropic Claude
-                      </p>
-                      <p className="text-[11px] text-muted-foreground">
-                        Requer sua chave API
-                      </p>
+                      <p className="text-sm font-medium text-foreground">Anthropic Claude</p>
+                      <p className="text-[11px] text-muted-foreground">Requer sua chave API</p>
                     </div>
                   </div>
-                  <Switch
-                    checked={isAnthropic}
-                    onCheckedChange={handleProviderChange}
-                  />
+                  <Switch checked={isAnthropic} onCheckedChange={handleProviderChange} />
                 </div>
-
                 <div className="space-y-3 pt-2 border-t border-border-subtle">
                   <div>
-                    <Label
-                      htmlFor="anthropic-key"
-                      className="text-xs text-muted-foreground"
-                    >
-                      Chave API da Anthropic
-                    </Label>
+                    <Label htmlFor="anthropic-key" className="text-xs text-muted-foreground">Chave API da Anthropic</Label>
                     <div className="flex gap-2 mt-1.5">
-                      <Input
-                        id="anthropic-key"
-                        type="password"
-                        placeholder="sk-ant-..."
-                        value={anthropicKey}
-                        onChange={(e) => setAnthropicKey(e.target.value)}
-                        className="text-xs bg-surface border-border font-mono"
-                      />
-                      <button
-                        onClick={handleSaveKey}
-                        disabled={saving}
-                        className="px-3 py-2 text-xs rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 shrink-0"
-                      >
+                      <Input id="anthropic-key" type="password" placeholder="sk-ant-..." value={anthropicKey} onChange={(e) => setAnthropicKey(e.target.value)} className="text-xs bg-surface border-border font-mono" />
+                      <button onClick={handleSaveKey} disabled={saving} className="px-3 py-2 text-xs rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 shrink-0">
                         {saving ? "..." : "Salvar"}
                       </button>
                     </div>
-                    <p className="text-[10px] text-muted-foreground/60 mt-1.5">
-                      Sua chave é armazenada de forma segura e usada apenas para
-                      chamadas de classificação e geração de rascunhos.
-                    </p>
+                    <p className="text-[10px] text-muted-foreground/60 mt-1.5">Sua chave é armazenada de forma segura.</p>
                   </div>
                 </div>
               </div>
@@ -212,32 +180,61 @@ export default function SettingsPage() {
           {/* Categories Tab */}
           <TabsContent value="categories" className="space-y-4">
             <div className="rounded-lg border border-border bg-card p-5">
-              <h3 className="text-sm font-medium text-foreground mb-1">
-                Categorias
-              </h3>
-              <p className="text-xs text-muted-foreground mb-4">
-                As 8 categorias usadas pela ARIA para classificar seus e-mails.
-              </p>
+              <h3 className="text-sm font-medium text-foreground mb-1">Categorias</h3>
+              <p className="text-xs text-muted-foreground mb-4">As 8 categorias usadas pela ARIA.</p>
               <div className="space-y-2">
                 {Object.entries(CATEGORY_MAP).map(([key, label]) => (
-                  <div
-                    key={key}
-                    className="flex items-center gap-3 px-3 py-2.5 rounded-md bg-surface"
-                  >
-                    <div
-                      className="w-2.5 h-2.5 rounded-full shrink-0"
-                      style={{
-                        backgroundColor: `hsl(${CAT_COLORS[key]})`,
-                      }}
-                    />
-                    <span className="text-xs text-foreground flex-1">
-                      {label}
-                    </span>
-                    <span className="text-[10px] font-label text-muted-foreground">
-                      {key}
-                    </span>
+                  <div key={key} className="flex items-center gap-3 px-3 py-2.5 rounded-md bg-surface">
+                    <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: `hsl(${CAT_COLORS[key]})` }} />
+                    <span className="text-xs text-foreground flex-1">{label}</span>
+                    <span className="text-[10px] font-label text-muted-foreground">{key}</span>
                   </div>
                 ))}
+              </div>
+            </div>
+          </TabsContent>
+
+          {/* Snippets Tab */}
+          <TabsContent value="snippets" className="space-y-4">
+            <div className="rounded-lg border border-border bg-card p-5">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-sm font-medium text-foreground mb-1">Snippets</h3>
+                  <p className="text-xs text-muted-foreground">Atalhos de texto rápido para respostas.</p>
+                </div>
+                <button onClick={() => setShowAddSnippet(true)} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs text-primary bg-primary/10 hover:bg-primary/15 transition-colors">
+                  <Plus className="w-3 h-3" />Novo
+                </button>
+              </div>
+
+              {/* Add form */}
+              {showAddSnippet && (
+                <div className="mb-4 p-3 rounded-lg bg-surface border border-border-subtle space-y-3">
+                  <Input placeholder="/trigger" value={newSnippet.trigger_text} onChange={(e) => setNewSnippet({ ...newSnippet, trigger_text: e.target.value })} className="text-xs bg-background border-border font-mono" />
+                  <Input placeholder="Conteúdo do snippet..." value={newSnippet.content} onChange={(e) => setNewSnippet({ ...newSnippet, content: e.target.value })} className="text-xs bg-background border-border" />
+                  <div className="flex gap-2">
+                    <button onClick={handleAddSnippet} className="flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs bg-primary text-primary-foreground hover:bg-primary/90"><Save className="w-3 h-3" />Salvar</button>
+                    <button onClick={() => { setShowAddSnippet(false); setNewSnippet({ trigger_text: "", content: "" }); }} className="px-2.5 py-1.5 rounded-md text-xs text-muted-foreground hover:bg-surface-hover"><X className="w-3 h-3" /></button>
+                  </div>
+                </div>
+              )}
+
+              {/* Snippet list */}
+              <div className="space-y-2">
+                {snippets.map((s) => (
+                  <SnippetRow
+                    key={s.id}
+                    snippet={s}
+                    isEditing={editingSnippet === s.id}
+                    onEdit={() => setEditingSnippet(s.id)}
+                    onSave={(t, c) => handleUpdateSnippet(s.id, t, c)}
+                    onCancel={() => setEditingSnippet(null)}
+                    onDelete={() => handleDeleteSnippet(s.id)}
+                  />
+                ))}
+                {snippets.length === 0 && (
+                  <p className="text-xs text-muted-foreground/50 text-center py-4">Nenhum snippet configurado.</p>
+                )}
               </div>
             </div>
           </TabsContent>
@@ -246,44 +243,85 @@ export default function SettingsPage() {
           <TabsContent value="account" className="space-y-4">
             <div className="rounded-lg border border-border bg-card p-5 space-y-4">
               <div>
-                <h3 className="text-sm font-medium text-foreground mb-1">
-                  Conta
-                </h3>
-                <p className="text-xs text-muted-foreground">
-                  {profile?.email ?? "Carregando..."}
-                </p>
+                <h3 className="text-sm font-medium text-foreground mb-1">Conta</h3>
+                <p className="text-xs text-muted-foreground">{profile?.email ?? "Carregando..."}</p>
               </div>
 
               {profile && (
                 <div className="flex items-center gap-3 px-3 py-3 rounded-md bg-surface">
                   <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-medium text-primary">
-                    {profile.display_name
-                      ?.split(" ")
-                      .map((n) => n[0])
-                      .join("")
-                      .slice(0, 2)
-                      .toUpperCase() ?? "U"}
+                    {profile.display_name?.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase() ?? "U"}
                   </div>
                   <div>
-                    <p className="text-xs text-foreground font-medium">
-                      {profile.display_name ?? "Usuário"}
-                    </p>
-                    <p className="text-[10px] text-muted-foreground">
-                      {profile.email}
-                    </p>
+                    <p className="text-xs text-foreground font-medium">{profile.display_name ?? "Usuário"}</p>
+                    <p className="text-[10px] text-muted-foreground">{profile.email}</p>
                   </div>
                 </div>
               )}
 
-              <button
-                onClick={handleSignOut}
-                className="w-full px-3 py-2 text-xs rounded-md border border-destructive/30 text-destructive hover:bg-destructive/10 transition-colors"
-              >
+              {/* Gmail status */}
+              <div className="flex items-center gap-3 px-3 py-3 rounded-md bg-surface">
+                <Mail className="w-4 h-4 text-muted-foreground" />
+                <div className="flex-1">
+                  <p className="text-xs text-foreground font-medium">Gmail</p>
+                  <p className="text-[10px] text-muted-foreground">
+                    {profile?.gmail_connected ? "Conectado e operacional" : "Não conectado"}
+                  </p>
+                </div>
+                {profile?.gmail_connected ? (
+                  <CheckCircle2 className="w-4 h-4 text-[hsl(var(--cat-notification))]" />
+                ) : (
+                  <button
+                    onClick={() => navigate("/onboarding")}
+                    className="px-2.5 py-1 rounded-md text-[10px] bg-primary/10 text-primary hover:bg-primary/15 transition-colors"
+                  >
+                    Conectar
+                  </button>
+                )}
+              </div>
+
+              <button onClick={handleSignOut} className="w-full px-3 py-2 text-xs rounded-md border border-destructive/30 text-destructive hover:bg-destructive/10 transition-colors">
                 Sair da conta
               </button>
             </div>
           </TabsContent>
         </Tabs>
+      </div>
+    </div>
+  );
+}
+
+function SnippetRow({ snippet, isEditing, onEdit, onSave, onCancel, onDelete }: {
+  snippet: Snippet;
+  isEditing: boolean;
+  onEdit: () => void;
+  onSave: (trigger: string, content: string) => void;
+  onCancel: () => void;
+  onDelete: () => void;
+}) {
+  const [trigger, setTrigger] = useState(snippet.trigger_text);
+  const [content, setContent] = useState(snippet.content);
+
+  if (isEditing) {
+    return (
+      <div className="p-3 rounded-lg bg-surface border border-border-subtle space-y-2">
+        <Input value={trigger} onChange={(e) => setTrigger(e.target.value)} className="text-xs bg-background border-border font-mono" />
+        <Input value={content} onChange={(e) => setContent(e.target.value)} className="text-xs bg-background border-border" />
+        <div className="flex gap-2">
+          <button onClick={() => onSave(trigger, content)} className="flex items-center gap-1 px-2 py-1 rounded-md text-xs bg-primary text-primary-foreground"><Save className="w-3 h-3" />Salvar</button>
+          <button onClick={onCancel} className="px-2 py-1 rounded-md text-xs text-muted-foreground hover:bg-surface-hover">Cancelar</button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-3 px-3 py-2.5 rounded-md bg-surface group">
+      <code className="text-[11px] font-mono text-primary shrink-0">{snippet.trigger_text}</code>
+      <span className="text-xs text-foreground/70 flex-1 truncate">{snippet.content}</span>
+      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <button onClick={onEdit} className="p-1 rounded text-muted-foreground hover:text-foreground"><Edit2 className="w-3 h-3" /></button>
+        <button onClick={onDelete} className="p-1 rounded text-muted-foreground hover:text-destructive"><Trash2 className="w-3 h-3" /></button>
       </div>
     </div>
   );

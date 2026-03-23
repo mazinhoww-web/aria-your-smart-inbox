@@ -14,13 +14,251 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      email_drafts: {
+        Row: {
+          created_at: string | null
+          draft_body: string
+          gmail_draft_id: string | null
+          gmail_message_id: string
+          gmail_thread_id: string
+          id: string
+          status: string | null
+          subject: string | null
+          thread_summary: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          draft_body: string
+          gmail_draft_id?: string | null
+          gmail_message_id: string
+          gmail_thread_id: string
+          id?: string
+          status?: string | null
+          subject?: string | null
+          thread_summary?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          draft_body?: string
+          gmail_draft_id?: string | null
+          gmail_message_id?: string
+          gmail_thread_id?: string
+          id?: string
+          status?: string | null
+          subject?: string | null
+          thread_summary?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_drafts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      processed_emails: {
+        Row: {
+          body_html: string | null
+          category: string
+          gmail_message_id: string
+          gmail_thread_id: string
+          has_draft: boolean | null
+          id: string
+          is_unread: boolean | null
+          processed_at: string | null
+          received_at: string | null
+          sender_email: string | null
+          sender_name: string | null
+          snippet: string | null
+          subject: string | null
+          user_id: string
+        }
+        Insert: {
+          body_html?: string | null
+          category?: string
+          gmail_message_id: string
+          gmail_thread_id: string
+          has_draft?: boolean | null
+          id?: string
+          is_unread?: boolean | null
+          processed_at?: string | null
+          received_at?: string | null
+          sender_email?: string | null
+          sender_name?: string | null
+          snippet?: string | null
+          subject?: string | null
+          user_id: string
+        }
+        Update: {
+          body_html?: string | null
+          category?: string
+          gmail_message_id?: string
+          gmail_thread_id?: string
+          has_draft?: boolean | null
+          id?: string
+          is_unread?: boolean | null
+          processed_at?: string | null
+          received_at?: string | null
+          sender_email?: string | null
+          sender_name?: string | null
+          snippet?: string | null
+          subject?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "processed_emails_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      snippets: {
+        Row: {
+          content: string
+          created_at: string | null
+          id: string
+          trigger_text: string
+          use_count: number | null
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string | null
+          id?: string
+          trigger_text: string
+          use_count?: number | null
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string | null
+          id?: string
+          trigger_text?: string
+          use_count?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "snippets_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      snooze_queue: {
+        Row: {
+          created_at: string | null
+          executed: boolean | null
+          gmail_message_id: string
+          id: string
+          original_labels: Json | null
+          remind_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          executed?: boolean | null
+          gmail_message_id: string
+          id?: string
+          original_labels?: Json | null
+          remind_at: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          executed?: boolean | null
+          gmail_message_id?: string
+          id?: string
+          original_labels?: Json | null
+          remind_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "snooze_queue_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_profiles: {
+        Row: {
+          avatar_url: string | null
+          category_settings: Json | null
+          created_at: string | null
+          custom_instructions: string | null
+          display_name: string | null
+          email: string
+          gmail_access_token: string | null
+          gmail_connected: boolean | null
+          gmail_refresh_token: string | null
+          gmail_token_expiry: string | null
+          id: string
+          label_mapping: Json | null
+          style_analyzed_at: string | null
+          style_profile: Json | null
+          updated_at: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          category_settings?: Json | null
+          created_at?: string | null
+          custom_instructions?: string | null
+          display_name?: string | null
+          email: string
+          gmail_access_token?: string | null
+          gmail_connected?: boolean | null
+          gmail_refresh_token?: string | null
+          gmail_token_expiry?: string | null
+          id: string
+          label_mapping?: Json | null
+          style_analyzed_at?: string | null
+          style_profile?: Json | null
+          updated_at?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          category_settings?: Json | null
+          created_at?: string | null
+          custom_instructions?: string | null
+          display_name?: string | null
+          email?: string
+          gmail_access_token?: string | null
+          gmail_connected?: boolean | null
+          gmail_refresh_token?: string | null
+          gmail_token_expiry?: string | null
+          id?: string
+          label_mapping?: Json | null
+          style_analyzed_at?: string | null
+          style_profile?: Json | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      insert_default_snippets: {
+        Args: { user_uuid: string }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never

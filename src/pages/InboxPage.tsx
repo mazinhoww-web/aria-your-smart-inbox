@@ -17,14 +17,6 @@ export default function InboxPage() {
         navigate("/");
         return;
       }
-
-      // Check if Gmail is connected
-      const { data: profile } = await supabase
-        .from("user_profiles")
-        .select("gmail_connected")
-        .eq("id", session.user.id)
-        .single();
-
       loadProfile();
       loadEmails();
     };

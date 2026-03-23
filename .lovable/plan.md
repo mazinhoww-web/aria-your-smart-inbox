@@ -1,50 +1,35 @@
 
+# ARIA Implementation Status
 
-# Status: O que falta para ARIA ficar funcional
+## ✅ Completed
+- Database schema (5 tables + RLS + triggers + functions)
+- Google login via Lovable Cloud
+- All 8 edge functions deployed:
+  - `classify-email` — AI classification
+  - `generate-draft` — AI draft generation with Gmail API
+  - `process-inbox` — batch inbox processing (demo + real modes)
+  - `exchange-google-token` — OAuth code → encrypted tokens
+  - `setup-labels` — create/map 8 Gmail labels
+  - `analyze-style` — extract writing style from sent emails
+  - `send-draft` — send Gmail draft + update DB
+  - `get-gmail-auth-url` — returns Google OAuth URL securely
+- Zustand store with all actions (loadEmails, processInbox, generateDraft, sendDraft, etc.)
+- Full UI: LandingPage, InboxPage, OnboardingPage, GmailCallbackPage, SettingsPage
+- Auth guard: login → check gmail_connected → onboarding or inbox
+- SettingsPage: AI provider toggle, categories, snippets CRUD, account with Gmail status
+- Secrets configured: ENCRYPTION_KEY, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, LOVABLE_API_KEY
 
-## O que FUNCIONA hoje
-- Login com Google (Lovable Cloud)
-- Database schema completo (5 tabelas + RLS + triggers)
-- Zustand store conectado ao banco
-- 3 edge functions: `classify-email`, `generate-draft`, `process-inbox` (modo demo com dados fake)
-- UI completa: LandingPage, InboxPage (3 colunas), SettingsPage (AI toggle, categorias, conta)
-- Componentes inbox: AppSidebar, EmailList, DetailPanel — todos conectados ao store
+## 🔧 Requires User Action
+- Configure Google Cloud Console:
+  1. Enable Gmail API
+  2. Add authorized redirect URIs:
+     - `https://aria-inbox-ai.lovable.app/auth/gmail-callback`
+  3. Add test users (if app is in testing mode)
 
-## O que NÃO funciona (tudo relacionado a Gmail real)
-
-### 1. Secrets faltando: `GOOGLE_CLIENT_ID` e `GOOGLE_CLIENT_SECRET`
-Sem essas credenciais do Google Cloud Console, nenhuma integração Gmail funciona. O `ENCRYPTION_KEY` já foi configurado.
-
-### 2. Edge functions faltando (4 de 7)
-| Função | Status |
-|---|---|
-| `exchange-google-token` | Não existe |
-| `setup-labels` | Não existe |
-| `analyze-style` | Não existe |
-| `send-draft` | Não existe |
-
-### 3. Páginas faltando
-- **OnboardingPage** (`/onboarding`) — wizard de 3 passos para conectar Gmail
-- **GmailCallbackPage** (`/auth/gmail-callback`) — captura código OAuth do Google
-
-### 4. Auth guard incompleto
-- Após login, não verifica `gmail_connected` para redirecionar a `/onboarding`
-- Rotas `/onboarding` e `/auth/gmail-callback` não existem no App.tsx
-
-### 5. Funcionalidades da UI sem backend
-- Botão "Enviar" no draft panel não funciona (falta `send-draft`)
-- Botão "Processar" gera dados demo, não busca Gmail real
-- Tabs Snippets e Account no Settings estão incompletas (sem CRUD de snippets, sem status Gmail)
-
-## Resumo
-A aplicação roda e mostra dados demo. Para funcionar com Gmail real, precisa:
-1. Credenciais Google Cloud Console (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`)
-2. 4 edge functions + 2 páginas + auth guard
-
-### Plano de implementação (próximos passos)
-1. Criar `exchange-google-token`, `setup-labels`, `analyze-style`, `send-draft`
-2. Criar OnboardingPage + GmailCallbackPage
-3. Adicionar rotas e auth guard no App.tsx
-4. Completar SettingsPage (Snippets tab, Gmail status)
-5. Conectar `process-inbox` para usar Gmail API real quando `gmail_connected=true`
-
+## 🎯 Future Enhancements
+- Command palette (⌘K)
+- Snooze modal + edge function
+- Keyboard shortcuts
+- Processing toast with real-time stats
+- Undo send with 10s countdown
+- Mobile responsive layout

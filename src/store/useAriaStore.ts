@@ -36,23 +36,15 @@ interface UserProfile {
 }
 
 interface AriaStore {
-  // Auth
   profile: UserProfile | null;
-
-  // Inbox
   emails: Email[];
   selectedEmailId: string | null;
   categoryCounts: Record<string, number>;
-
-  // Processing
   isProcessing: boolean;
   processingStats: Record<string, number> | null;
-
-  // Draft
   activeDraft: Draft | null;
   isDraftLoading: boolean;
 
-  // Actions
   loadProfile: () => Promise<void>;
   updateProfile: (updates: Partial<UserProfile>) => Promise<void>;
   loadEmails: () => Promise<void>;
@@ -61,6 +53,7 @@ interface AriaStore {
   generateDraft: (messageId: string, threadId: string) => Promise<void>;
   loadDraft: (messageId: string) => Promise<void>;
   discardDraft: (draftId: string) => Promise<void>;
+  sendDraft: (draftId: string, gmailDraftId: string) => Promise<void>;
 }
 
 const CATEGORY_MAP: Record<string, string> = {
@@ -87,30 +80,20 @@ export const useAriaStore = create<AriaStore>((set, get) => ({
   isDraftLoading: false,
 
   loadProfile: async () => {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-
     const { data } = await supabase
       .from("user_profiles")
       .select("*")
       .eq("id", user.id)
       .single();
-
-    if (data) {
-      set({
-        profile: data as unknown as UserProfile,
-      });
-    }
+    if (data) set({ profile: data as unknown as UserProfile });
   },
 
   updateProfile: async (updates) => {
     const profile = get().profile;
     if (!profile) return;
-
     await supabase.from("user_profiles").update(updates as any).eq("id", profile.id);
-
     set({ profile: { ...profile, ...updates } as UserProfile });
   },
 
@@ -120,33 +103,20 @@ export const useAriaStore = create<AriaStore>((set, get) => ({
       .select("*")
       .order("received_at", { ascending: false })
       .limit(100);
-
     if (data) {
       const counts: Record<string, number> = {};
-      data.forEach((e) => {
-        counts[e.category] = (counts[e.category] ?? 0) + 1;
-      });
+      data.forEach((e) => { counts[e.category] = (counts[e.category] ?? 0) + 1; });
       set({ emails: data as Email[], categoryCounts: counts });
     }
   },
 
-  selectEmail: (id) => {
-    set({ selectedEmailId: id, activeDraft: null });
-  },
+  selectEmail: (id) => set({ selectedEmailId: id, activeDraft: null }),
 
   processInbox: async () => {
     set({ isProcessing: true, processingStats: null });
     try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      const res = await supabase.functions.invoke("process-inbox", {
-        body: { limit: 50 },
-      });
-
-      if (res.data) {
-        set({ processingStats: res.data.categories });
-      }
+      const res = await supabase.functions.invoke("process-inbox", { body: { limit: 50 } });
+      if (res.data) set({ processingStats: res.data.categories });
       await get().loadEmails();
     } finally {
       set({ isProcessing: false });
@@ -159,12 +129,11 @@ export const useAriaStore = create<AriaStore>((set, get) => ({
       const res = await supabase.functions.invoke("generate-draft", {
         body: { gmail_message_id: messageId, gmail_thread_id: threadId },
       });
-
       if (res.data?.success) {
         set({
           activeDraft: {
             id: res.data.draft_id,
-            gmail_draft_id: null,
+            gmail_draft_id: res.data.gmail_draft_id ?? null,
             draft_body: res.data.draft_body,
             status: "pending",
           },
@@ -183,26 +152,29 @@ export const useAriaStore = create<AriaStore>((set, get) => ({
       .eq("gmail_message_id", messageId)
       .eq("status", "pending")
       .maybeSingle();
-
     set({
       activeDraft: data
-        ? {
-            id: data.id,
-            gmail_draft_id: data.gmail_draft_id,
-            draft_body: data.draft_body,
-            status: data.status,
-          }
+        ? { id: data.id, gmail_draft_id: data.gmail_draft_id, draft_body: data.draft_body, status: data.status }
         : null,
     });
   },
 
   discardDraft: async (draftId) => {
-    await supabase
-      .from("email_drafts")
-      .update({ status: "discarded" })
-      .eq("id", draftId);
-
+    await supabase.from("email_drafts").update({ status: "discarded" }).eq("id", draftId);
     set({ activeDraft: null });
     await get().loadEmails();
+  },
+
+  sendDraft: async (draftId, gmailDraftId) => {
+    try {
+      const res = await supabase.functions.invoke("send-draft", {
+        body: { draft_id: draftId, gmail_draft_id: gmailDraftId },
+      });
+      if (res.error) throw new Error(res.error.message);
+      set({ activeDraft: null });
+      await get().loadEmails();
+    } catch (err) {
+      throw err;
+    }
   },
 }));

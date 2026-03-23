@@ -34,6 +34,7 @@ export function DetailPanel() {
     loadDraft,
     generateDraft,
     discardDraft,
+    sendDraft,
   } = useAriaStore();
 
   const email = emails.find((e) => e.id === selectedEmailId);
@@ -191,7 +192,15 @@ export function DetailPanel() {
               Descartar
             </button>
             <div className="flex-1" />
-            <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs bg-primary text-primary-foreground hover:bg-primary/90 transition-colors active:scale-95 font-medium">
+            <button
+              onClick={() => {
+                if (activeDraft?.gmail_draft_id) {
+                  sendDraft(activeDraft.id, activeDraft.gmail_draft_id);
+                }
+              }}
+              disabled={!activeDraft?.gmail_draft_id}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs bg-primary text-primary-foreground hover:bg-primary/90 transition-colors active:scale-95 font-medium disabled:opacity-50"
+            >
               <Send className="w-3 h-3" />
               Enviar
               <kbd className="text-[9px] font-label opacity-70 ml-1">⌘↵</kbd>

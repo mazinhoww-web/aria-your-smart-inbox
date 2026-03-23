@@ -1,7 +1,21 @@
 import { motion } from "framer-motion";
 import { InboxDemo } from "@/components/landing/InboxDemo";
+import { lovable } from "@/integrations/lovable/index";
+import { useState } from "react";
 
 export default function LandingPage() {
+  const [loading, setLoading] = useState(false);
+
+  const handleGoogleSignIn = async () => {
+    setLoading(true);
+    const { error } = await lovable.auth.signInWithOAuth("google", {
+      redirect_uri: window.location.origin,
+    });
+    if (error) {
+      console.error("Google sign-in error:", error);
+      setLoading(false);
+    }
+  };
   return (
     <div className="grain min-h-screen bg-background flex flex-col">
       {/* Main content */}

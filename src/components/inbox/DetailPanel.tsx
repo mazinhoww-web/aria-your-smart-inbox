@@ -34,6 +34,7 @@ export function DetailPanel() {
     loadDraft,
     generateDraft,
     discardDraft,
+    sendDraft,
   } = useAriaStore();
 
   const email = emails.find((e) => e.id === selectedEmailId);

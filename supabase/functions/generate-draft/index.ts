@@ -7,6 +7,86 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+// --- Crypto helpers (copied from process-inbox) ---
+async function decrypt(encryptedText: string): Promise<string> {
+  const ENCRYPTION_KEY = Deno.env.get("ENCRYPTION_KEY") ?? "";
+  const combined = Uint8Array.from(atob(encryptedText), (c) => c.charCodeAt(0));
+  const iv = combined.slice(0, 12);
+  const encrypted = combined.slice(12);
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(ENCRYPTION_KEY.padEnd(32).slice(0, 32)),
+    { name: "AES-GCM" },
+    false,
+    ["decrypt"]
+  );
+  const decrypted = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, encrypted);
+  return new TextDecoder().decode(decrypted);
+}
+
+async function encrypt(text: string): Promise<string> {
+  const ENCRYPTION_KEY = Deno.env.get("ENCRYPTION_KEY") ?? "";
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(ENCRYPTION_KEY.padEnd(32).slice(0, 32)),
+    { name: "AES-GCM" },
+    false,
+    ["encrypt"]
+  );
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const encrypted = await crypto.subtle.encrypt(
+    { name: "AES-GCM", iv },
+    key,
+    new TextEncoder().encode(text)
+  );
+  const combined = new Uint8Array(iv.length + new Uint8Array(encrypted).length);
+  combined.set(iv);
+  combined.set(new Uint8Array(encrypted), iv.length);
+  return btoa(String.fromCharCode(...combined));
+}
+
+async function getValidAccessToken(userId: string, supabase: any): Promise<string> {
+  const { data: profile } = await supabase
+    .from("user_profiles")
+    .select("gmail_access_token, gmail_refresh_token, gmail_token_expiry")
+    .eq("id", userId)
+    .single();
+
+  if (!profile?.gmail_access_token) throw new Error("Gmail not connected");
+
+  const accessToken = await decrypt(profile.gmail_access_token);
+  const tokenExpiry = new Date(profile.gmail_token_expiry);
+
+  if (tokenExpiry > new Date(Date.now() + 5 * 60 * 1000)) {
+    return accessToken;
+  }
+
+  if (!profile.gmail_refresh_token) throw new Error("No refresh token");
+  const refreshToken = await decrypt(profile.gmail_refresh_token);
+
+  const res = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      client_id: Deno.env.get("GOOGLE_CLIENT_ID")!,
+      client_secret: Deno.env.get("GOOGLE_CLIENT_SECRET")!,
+      refresh_token: refreshToken,
+      grant_type: "refresh_token",
+    }),
+  });
+
+  const tokens = await res.json();
+  if (!tokens.access_token) throw new Error("Failed to refresh Gmail token");
+
+  await supabase.from("user_profiles").update({
+    gmail_access_token: await encrypt(tokens.access_token),
+    gmail_token_expiry: new Date(Date.now() + (tokens.expires_in ?? 3600) * 1000).toISOString(),
+  }).eq("id", userId);
+
+  return tokens.access_token;
+}
+
+// --- AI helper ---
 async function callAI(
   systemPrompt: string,
   userMessage: string,
@@ -140,7 +220,59 @@ Conteúdo: ${emailData.snippet}`;
       anthropicKey
     );
 
-    // Save draft
+    // ── CRIAR DRAFT REAL NO GMAIL ──────────────────────────────────────────
+    let gmailDraftId: string | null = null;
+    try {
+      const accessToken = await getValidAccessToken(user.id, supabase);
+
+      // Montar email em formato RFC 2822
+      const emailContent = [
+        `To: ${emailData.sender_email}`,
+        `Subject: Re: ${emailData.subject}`,
+        `In-Reply-To: ${gmail_message_id}`,
+        `References: ${gmail_message_id}`,
+        `Content-Type: text/plain; charset=UTF-8`,
+        ``,
+        draftBody,
+      ].join("\r\n");
+
+      // Encode para base64url (formato exigido pela Gmail API)
+      const encoded = btoa(unescape(encodeURIComponent(emailContent)))
+        .replace(/\+/g, "-")
+        .replace(/\//g, "_")
+        .replace(/=+$/, "");
+
+      const draftRes = await fetch(
+        "https://gmail.googleapis.com/gmail/v1/users/me/drafts",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            message: {
+              raw: encoded,
+              threadId: gmail_thread_id,
+            },
+          }),
+        }
+      );
+
+      if (draftRes.ok) {
+        const gmailDraft = await draftRes.json();
+        gmailDraftId = gmailDraft.id;
+        console.log("Gmail draft created:", gmailDraftId);
+      } else {
+        const err = await draftRes.text();
+        console.error("Failed to create Gmail draft:", draftRes.status, err);
+        // Continuar mesmo se falhar — draft fica salvo no banco
+      }
+    } catch (gmailErr) {
+      console.error("Gmail draft creation error:", gmailErr);
+    }
+
+    // ── SALVAR NO BANCO (com gmail_draft_id real) ──────────────────────────
     const { data: draft } = await supabase
       .from("email_drafts")
       .upsert(
@@ -150,6 +282,7 @@ Conteúdo: ${emailData.snippet}`;
           gmail_thread_id,
           subject: `Re: ${emailData.subject}`,
           draft_body: draftBody,
+          gmail_draft_id: gmailDraftId,
           status: "pending",
         },
         { onConflict: "user_id,gmail_message_id" }
@@ -157,7 +290,6 @@ Conteúdo: ${emailData.snippet}`;
       .select()
       .single();
 
-    // Update has_draft
     await supabase
       .from("processed_emails")
       .update({ has_draft: true })
@@ -169,6 +301,8 @@ Conteúdo: ${emailData.snippet}`;
         success: true,
         draft_body: draftBody,
         draft_id: draft?.id,
+        gmail_draft_id: gmailDraftId,
+        gmail_draft_created: !!gmailDraftId,
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },

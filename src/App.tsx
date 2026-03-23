@@ -6,6 +6,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import LandingPage from "./pages/LandingPage";
 import InboxPage from "./pages/InboxPage";
 import SettingsPage from "./pages/SettingsPage";
+import OnboardingPage from "./pages/OnboardingPage";
+import GmailCallbackPage from "./pages/GmailCallbackPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -18,6 +20,8 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<LandingPage />} />
+          <Route path="/onboarding" element={<OnboardingPage />} />
+          <Route path="/auth/gmail-callback" element={<GmailCallbackPage />} />
           <Route path="/inbox" element={<InboxPage />} />
           <Route path="/inbox/*" element={<InboxPage />} />
           <Route path="/settings" element={<SettingsPage />} />

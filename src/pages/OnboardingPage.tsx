@@ -50,21 +50,23 @@ export default function OnboardingPage() {
     checkAuth();
   }, []);
 
-  const handleGmailAuth = () => {
-    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-    if (!clientId) {
-      setError("Google Client ID não configurado. Contacte o administrador.");
-      return;
+  const handleGmailAuth = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await supabase.functions.invoke("get-gmail-auth-url", {
+        body: { redirect_uri: `${window.location.origin}/auth/gmail-callback` },
+      });
+      if (res.error) throw new Error(res.error.message);
+      if (res.data?.auth_url) {
+        window.location.href = res.data.auth_url;
+      } else {
+        throw new Error("Failed to get auth URL");
+      }
+    } catch (err) {
+      setError((err as Error).message);
+      setLoading(false);
     }
-    const params = new URLSearchParams({
-      client_id: clientId,
-      redirect_uri: `${window.location.origin}/auth/gmail-callback`,
-      response_type: "code",
-      scope: GMAIL_SCOPES,
-      access_type: "offline",
-      prompt: "consent",
-    });
-    window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?${params}`;
   };
 
   const runSetupLabels = async () => {

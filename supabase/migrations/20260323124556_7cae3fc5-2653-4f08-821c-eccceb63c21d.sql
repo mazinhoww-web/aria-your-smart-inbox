@@ -1,0 +1,2 @@
+ALTER TABLE public.user_profiles ADD COLUMN IF NOT EXISTS ai_provider TEXT DEFAULT 'lovable' CHECK (ai_provider IN ('lovable', 'anthropic'));
+ALTER TABLE public.user_profiles ADD COLUMN IF NOT EXISTS anthropic_api_key TEXT;

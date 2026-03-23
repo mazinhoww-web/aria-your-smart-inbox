@@ -198,6 +198,8 @@ export type Database = {
       }
       user_profiles: {
         Row: {
+          ai_provider: string | null
+          anthropic_api_key: string | null
           avatar_url: string | null
           category_settings: Json | null
           created_at: string | null
@@ -215,6 +217,8 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          ai_provider?: string | null
+          anthropic_api_key?: string | null
           avatar_url?: string | null
           category_settings?: Json | null
           created_at?: string | null
@@ -232,6 +236,8 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          ai_provider?: string | null
+          anthropic_api_key?: string | null
           avatar_url?: string | null
           category_settings?: Json | null
           created_at?: string | null

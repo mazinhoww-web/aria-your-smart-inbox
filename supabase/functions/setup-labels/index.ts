@@ -67,14 +67,14 @@ async function getValidAccessToken(userId: string, supabase: any): Promise<strin
 }
 
 const LABEL_NAMES: Record<string, string> = {
-  to_respond: "ARIA/1: Responder",
-  fyi: "ARIA/2: FYI",
-  comment: "ARIA/3: Comentário",
-  notification: "ARIA/4: Notificação",
-  meeting_update: "ARIA/5: Reunião",
-  awaiting_reply: "ARIA/6: Aguardando",
-  actioned: "ARIA/7: Acionado",
-  marketing: "ARIA/8: Marketing",
+  to_respond: "1: to respond",
+  fyi: "2: FYI",
+  comment: "3: comment",
+  notification: "4: notification",
+  meeting_update: "5: meeting update",
+  awaiting_reply: "6: awaiting reply",
+  actioned: "7: actioned",
+  marketing: "8: marketing",
 };
 
 serve(async (req) => {

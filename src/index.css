@@ -125,3 +125,11 @@
   outline: 2px solid hsl(var(--ring));
   outline-offset: 2px;
 }
+
+/* Email body content */
+.email-body-content img { max-width: 100%; height: auto; }
+.email-body-content a { color: hsl(var(--primary)); text-decoration: underline; }
+.email-body-content table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.email-body-content * { max-width: 100%; }
+.email-body-content [style*="background"] { background: transparent !important; }
+.email-body-content body { background: transparent !important; }

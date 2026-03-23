@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { RefreshCw, Filter, Loader2, CheckCircle2 } from "lucide-react";
+import { RefreshCw, Filter, Loader2, CheckCircle2, FileText } from "lucide-react";
 import { useAriaStore, CATEGORY_MAP } from "@/store/useAriaStore";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -139,7 +139,12 @@ function EmailRow({ email, selected, onSelect }: {
             {email.sender_name ?? "Desconhecido"}
           </span>
           <div className="flex items-center gap-1.5 shrink-0">
-            {email.has_draft && <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse-glow" />}
+            {email.has_draft && (
+              <div className="flex items-center gap-1 text-[9px] font-label text-primary bg-primary/10 px-1.5 py-0.5 rounded">
+                <FileText className="w-2.5 h-2.5" />
+                Draft no Gmail
+              </div>
+            )}
             <span className="text-[9px] font-label px-1.5 py-0.5 rounded-full" style={{ backgroundColor: `hsl(${catColor} / 0.12)`, color: `hsl(${catColor})` }}>
               {catLabel}
             </span>

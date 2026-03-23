@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import {
   Archive,
@@ -13,6 +13,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { useAriaStore, CATEGORY_MAP } from "@/store/useAriaStore";
+import { supabase } from "@/integrations/supabase/client";
 
 const CAT_COLORS: Record<string, string> = {
   to_respond: "var(--cat-respond)",
@@ -37,6 +38,9 @@ export function DetailPanel() {
     sendDraft,
   } = useAriaStore();
 
+  const [emailBody, setEmailBody] = useState<string | null>(null);
+  const [bodyLoading, setBodyLoading] = useState(false);
+
   const email = emails.find((e) => e.id === selectedEmailId);
 
   useEffect(() => {
@@ -44,6 +48,29 @@ export function DetailPanel() {
       loadDraft(email.gmail_message_id);
     }
   }, [selectedEmailId]);
+
+  useEffect(() => {
+    if (!email) {
+      setEmailBody(null);
+      return;
+    }
+
+    setBodyLoading(true);
+    setEmailBody(null);
+
+    supabase.functions
+      .invoke("get-email-body", {
+        body: { gmail_message_id: email.gmail_message_id },
+      })
+      .then(({ data, error }) => {
+        if (!error && data?.body_html) {
+          setEmailBody(data.body_html);
+        } else {
+          setEmailBody(`<p>${email.snippet ?? ""}</p>`);
+        }
+        setBodyLoading(false);
+      });
+  }, [email?.gmail_message_id]);
 
   if (!email) {
     return (
@@ -148,9 +175,19 @@ export function DetailPanel() {
       </div>
 
       {/* Body */}
-      <div className="px-6 py-5 text-sm text-foreground/80 leading-relaxed">
-        <p>{email.snippet}</p>
-      </div>
+      {bodyLoading ? (
+        <div className="px-6 py-5 flex items-center gap-2 text-muted-foreground text-xs">
+          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          Carregando...
+        </div>
+      ) : (
+        <div
+          className="px-6 py-5 text-sm text-foreground/80 leading-relaxed email-body-content"
+          dangerouslySetInnerHTML={{
+            __html: emailBody ?? `<p>${email.snippet ?? ""}</p>`,
+          }}
+        />
+      )}
 
       {/* Draft Panel */}
       {activeDraft && (
@@ -209,8 +246,8 @@ export function DetailPanel() {
         </motion.div>
       )}
 
-      {/* Generate draft button */}
-      {!activeDraft && !isDraftLoading && (
+      {/* Generate draft button — somente para emails to_respond */}
+      {email.category === "to_respond" && !activeDraft && !isDraftLoading && (
         <div className="px-6 pb-6">
           <button
             onClick={() =>
@@ -225,7 +262,7 @@ export function DetailPanel() {
       )}
 
       {/* Loading draft */}
-      {isDraftLoading && (
+      {email.category === "to_respond" && isDraftLoading && (
         <div className="px-6 pb-6 flex justify-center">
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <Loader2 className="w-3.5 h-3.5 animate-spin" />

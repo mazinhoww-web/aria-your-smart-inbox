@@ -101,12 +101,18 @@ export default function LandingPage() {
           <p className="mt-6 text-[11px] text-muted-foreground/60 font-label">
             Seus dados ficam criptografados e nunca são compartilhados.
           </p>
+
+          {/* Claude access confirmation badge */}
+          <div className="mt-4 inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-green-500/30 bg-green-500/10">
+            <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+            <span className="text-[11px] text-green-400 font-mono">Claude tem acesso — alterado em 23/03/2026</span>
+          </div>
         </motion.div>
       </div>
 
       {/* Bottom bar */}
       <div className="border-t border-border-subtle px-6 py-4 flex items-center justify-between">
-        <span className="text-[11px] text-muted-foreground/40 font-label">ARIA v1.0</span>
+        <span className="text-[11px] text-muted-foreground/40 font-label">ARIA v1.1 · Claude</span>
         <div className="flex items-center gap-1.5">
           <div className="w-1.5 h-1.5 rounded-full bg-cat-notification animate-pulse-glow" />
           <span className="text-[11px] text-muted-foreground/40 font-label">Systems operational</span>
